@@ -56,7 +56,7 @@ export class AppComponent implements OnInit {
         }
     }
 
-    public handleClick(cell): void {
+    public handleClick(cell: Cell): void {
         const cellTaken: boolean = this.isCellTaken(cell);
 
         if (!cellTaken && !this.showEndgame) {
