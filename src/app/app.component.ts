@@ -1,4 +1,4 @@
-import { Component, ViewChild, OnInit } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 
 @Component({
     selector: 'app-root',
@@ -7,22 +7,19 @@ import { Component, ViewChild, OnInit } from '@angular/core';
 })
 export class AppComponent implements OnInit {
 
-    // @ViewChildren('cell') private cellElements: ElementRef[];
-    @ViewChild('board', { static: false }) private board: any;
-
     public showEndgame: boolean = false;
     public winningMessageText: string;
-    public grid: any[] = [];
-    public stats: any = {
-        playerWins: 0,
-        aiWins: 0,
+    public grid: Cell[];
+    public stats: Stats = {
+        user: 0,
+        ai: 0,
         draw: 0
     };
 
-    private usersTurn;
+    private usersTurn: boolean;
     private playerClass: string = 'x';
     private aiClass: string = 'circle';
-    private WINNING_COMBINATIONS: any[] = [
+    private WINNING_COMBINATIONS: number[][] = [
         [0, 1, 2],
         [3, 4, 5],
         [6, 7, 8],
@@ -34,11 +31,18 @@ export class AppComponent implements OnInit {
     ];
 
     public ngOnInit(): void {
+        const storage = localStorage.getItem('statsStash');
+
+        if (storage) {
+            this.stats = JSON.parse(storage);
+        }
+
         this.startGame();
     }
 
-    private startGame() {
-        this.usersTurn = false;
+    private startGame(): void {
+        this.usersTurn = !!(Math.round(Math.random()));
+
         this.grid = [];
 
         while (this.grid.length < 9) {
@@ -46,90 +50,90 @@ export class AppComponent implements OnInit {
         }
 
         this.showEndgame = false;
+
+        if (this.usersTurn) {
+            this.aiTurn(true);
+        }
     }
 
-    public handleClick(cell) {
+    public handleClick(cell): void {
         const cellTaken: boolean = this.isCellTaken(cell);
 
-        if (!cellTaken) {
+        if (!cellTaken && !this.showEndgame) {
             this.handlePlay(cell);
         }
     }
 
-    private handlePlay(cell) {
+    private handlePlay(cell: Cell): void {
         const currentClass = this.usersTurn ? this.aiClass : this.playerClass;
 
         this.placeMark(cell, currentClass);
 
-        const winningCombo = this.checkWin(currentClass);
+        const hasWinningCombo = this.checkWin(currentClass);
         const isDraw = this.checkDraw();
 
-        // check win
-        if (winningCombo) {
-            console.log('winner has been declared!');
+        if (hasWinningCombo) {
             this.endGame(false);
         }
         else if (isDraw) {
-            console.log('draw');
             this.endGame(true);
         }
         else {
             this.swapTurns();
 
             if (this.usersTurn) {
-                console.log('AI turn');
-                this.aiTurn();
+                this.aiTurn(false);
             }
         }
     }
 
-    private placeMark(cell, currentClass) {
+    private placeMark(cell: Cell, currentClass: string): void {
         cell.selection = currentClass;
     }
 
-    private swapTurns() {
+    private swapTurns(): void {
         this.usersTurn = !this.usersTurn;
     }
 
-    private aiTurn() {
-
+    private aiTurn(firstRun: boolean): void {
         const userCombo = this.checkPotentialCombo(this.playerClass, 2);
         const aiCombo = this.checkPotentialCombo(this.aiClass, 2);
         const singleAiCombo = this.checkPotentialCombo(this.aiClass, 1);
-        let selectedElement;
+        let chosenCell: Cell;
 
         if (aiCombo) {
-            selectedElement = this.aiDecition(aiCombo);
+            chosenCell = this.aiDecition(aiCombo);
         }
         else if (userCombo) {
-            selectedElement = this.aiDecition(userCombo);
+            chosenCell = this.aiDecition(userCombo);
         }
         else if (singleAiCombo) {
-            selectedElement = this.aiDecition(singleAiCombo);
+            chosenCell = this.aiDecition(singleAiCombo);
         }
         else {
             const isMiddleFree = this.isCellTaken(this.grid[4]);
 
-            if (!isMiddleFree) {
-                selectedElement = this.grid[4];
+            if (!isMiddleFree && !firstRun) {
+                chosenCell = this.grid[4];
             }
             else {
-                while (!selectedElement) {
+                while (!chosenCell) {
                     const randomNumber = Math.floor(Math.random() * (this.grid.length - 0)) + 0;
                     const takenElement = this.isCellTaken(this.grid[randomNumber]);
 
                     if (!takenElement) {
-                        selectedElement = this.grid[randomNumber];
+                        chosenCell = this.grid[randomNumber];
                     }
                 }
             }
         }
 
-        this.handlePlay(selectedElement);
+        this.handlePlay(chosenCell);
     }
 
-    private aiDecition(potentialMoves) {
-        let selectedElement;
+    private aiDecition(potentialMoves: number[]): Cell {
+        let selectedElement: Cell;
+
         while (!selectedElement) {
             const randomNumber = potentialMoves[Math.floor(Math.random() * (potentialMoves.length - 0)) + 0];
             const takenElement = this.isCellTaken(this.grid[randomNumber]);
@@ -142,7 +146,7 @@ export class AppComponent implements OnInit {
         return selectedElement;
     }
 
-    private checkPotentialCombo(classToCheck, combosToCheck) {
+    private checkPotentialCombo(classToCheck: string, combosToCheck: number): number[] {
         return this.WINNING_COMBINATIONS.find(combination => {
             if (this.isRowFree(combination)) {
                 return false;
@@ -156,15 +160,15 @@ export class AppComponent implements OnInit {
         });
     }
 
-    private isRowFree(row) {
+    private isRowFree(row: number[]): boolean {
         return row.every(rowIndex => this.isCellTaken(this.grid[rowIndex]));
     }
 
-    private isCellTaken(cell) {
+    private isCellTaken(cell: Cell): boolean {
         return !!cell.selection;
     }
 
-    private checkWin(currentClass) {
+    private checkWin(currentClass: string): boolean {
         return this.WINNING_COMBINATIONS.some(combinaion => {
             return combinaion.every(index => {
                 return this.grid[index].selection === currentClass;
@@ -172,7 +176,7 @@ export class AppComponent implements OnInit {
         });
     }
 
-    private checkDraw() {
+    private checkDraw(): boolean {
         const allCells = [];
         this.grid.forEach(element => allCells.push(element));
 
@@ -183,22 +187,34 @@ export class AppComponent implements OnInit {
         });
     }
 
-    private endGame(draw) {
-        if (draw) {
+    private endGame(isDraw: boolean): void {
+        if (isDraw) {
             this.winningMessageText = `It's a draw!`;
             this.stats.draw++;
         }
         else {
             if (!this.usersTurn) {
                 this.winningMessageText = `Boom! You won!`;
-                this.stats.playerWins++;
+                this.stats.user++;
             }
             else {
                 this.winningMessageText = `Uh oh, you lost.`;
-                this.stats.aiWins++;
+                this.stats.ai++;
             }
         }
 
+        localStorage.setItem('statsStash', JSON.stringify(this.stats));
         this.showEndgame = true;
     }
+
+}
+
+interface Cell {
+    selection: string | undefined;
+}
+
+interface Stats {
+    user: number;
+    ai: number;
+    draw: number;
 }

@@ -1,13 +1,13 @@
 <div #board class="board x">
     <div 
         *ngFor="let cell of grid" 
-        class="cell"
-        [ngClass]="cell.selection"
+        class="cell {{ cell.selection }} free-cell"
+        
         (click)="handleClick(cell)">
     </div>
-    <!-- <div class="stats">
-        Player: {{ stats.playerWins }} | Computer: {{ stats.aiWins }} | Draw: {{ stats.draw }}
-    </div> -->
+</div>
+<div class="stats">
+    Player: {{ stats.user }} | Computer: {{ stats.ai }} | Draw: {{ stats.draw }}
 </div>
 
 <div class="winning-message" *ngIf="showEndgame">
